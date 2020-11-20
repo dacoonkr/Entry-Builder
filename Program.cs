@@ -11,22 +11,28 @@ namespace Entry_Builder
     {
         static void Main(string[] args)
         {
-            if (args.Length == 3 && args[1] == "download")
+            if (args.Length == 2 && args[0] == "download")
             {
-                downloadMethod(args[2]);
+                downloadMethod(args[1]);
                 return;
             }
-            else if (args.Length == 2 && args[1] == "build")
+            else if (args.Length == 1 && args[0] == "build")
             {
                 return;
             }
 
-            downloadMethod("5eeafafcc109bb01bac814c9");
+            downloadMethod("5efc61012dc8ef002be36378");
+            //buildMethod();
 
             Console.WriteLine(
                 "enbuild download <projectID> : 엔트리 서버에서 프로젝트를 다운로드합니다. \n" +
                 "enbuild build : 다운로드된 프로젝트를 빌드합니다.\n"
             );
+        }
+
+        static void buildMethod()
+        {
+
         }
 
         static void downloadMethod(string projectID)
@@ -55,15 +61,22 @@ namespace Entry_Builder
             }
             response.Close();
 
-            JObject mainProject = JObject.Parse(responseFromServer);
-            Console.WriteLine("완료");
-
             string sDirPath = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location) + "\\resources";
             DirectoryInfo di = new DirectoryInfo(sDirPath);
             if (di.Exists == false)
             {
                 di.Create();
             }
+
+            if (!File.Exists("resources\\project.entbuild"))
+            {
+                File.Create("resources\\project.entbuild");
+            }
+            File.WriteAllText("resources\\project.entbuild", responseFromServer, System.Text.Encoding.UTF8);
+
+            JObject mainProject = JObject.Parse(responseFromServer);
+            Console.WriteLine("완료");
+
 
             List<string> images = new List<string>();
             List<string> sounds = new List<string>();
@@ -72,9 +85,15 @@ namespace Entry_Builder
             foreach (var i in mainProject["objects"])
             {
                 foreach (var j in i["sprite"]["pictures"])
-                    images.Add(j["filename"].ToString());
+                {
+                    try { images.Add(j["filename"].ToString()); }
+                    catch { images.Add($";{j["fileurl"]}"); }
+                }
                 foreach (var j in i["sprite"]["sounds"])
-                    sounds.Add(j["filename"].ToString());
+                {
+                    try { sounds.Add(j["filename"].ToString()); }
+                    catch { sounds.Add($";{j["fileurl"]}"); }
+                }
             }
             Console.WriteLine($"이미지 {images.Count}개, 소리 {sounds.Count}개 발견됨");
 
@@ -82,9 +101,18 @@ namespace Entry_Builder
             {
                 using (WebClient client = new WebClient())
                 {
-                    Console.Write($"{item}.png 다운로드 시작 - ");
-                    client.DownloadFile(new Uri($"https://playentry.org/uploads/{item.Substring(0, 2)}/{item.Substring(2, 2)}/image/{item}.png"), $"resources\\{item}.png");
-                    Console.WriteLine("완료");
+                    if (item[0] == ';')
+                    {
+                        Console.Write($"{item.Substring(1)} 다운로드 시작 - ");
+                        client.DownloadFile(new Uri($"https://playentry.org{item.Substring(1)}"), $"resources\\{item.Substring(1).Replace('/', ' ')}");
+                        Console.WriteLine("완료");
+                    }
+                    else
+                    {
+                        Console.Write($"{item}.png 다운로드 시작 - ");
+                        client.DownloadFile(new Uri($"https://playentry.org/uploads/{item.Substring(0, 2)}/{item.Substring(2, 2)}/image/{item}.png"), $"resources\\{item}.png");
+                        Console.WriteLine("완료");
+                    }
                 }
             }
             foreach (var item in sounds)
